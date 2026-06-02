@@ -17,6 +17,7 @@ export type DocSection =
   | 'connect-wallet' 
   | 'savings-goals' 
   | 'api-docs' 
+  | 'component-library'
   | 'smart-contracts' 
   | 'faq';
 
@@ -31,6 +32,7 @@ const sidebarItems: SidebarItem[] = [
   { id: 'connect-wallet', label: 'Connect Wallet', icon: Wallet },
   { id: 'savings-goals', label: 'Savings Goals', icon: Target },
   { id: 'api-docs', label: 'API Reference', icon: Code2 },
+  { id: 'component-library', label: 'Components', icon: Target }, // Using Target for now, maybe find a better icon
   { id: 'smart-contracts', label: 'Smart Contracts', icon: FileCode },
   { id: 'faq', label: 'FAQ', icon: HelpCircle },
 ];

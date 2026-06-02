@@ -32,12 +32,28 @@ const themeOptions: Array<{
   },
 ];
 
+/**
+ * Props for the ThemeToggle component
+ * 
+ * @param compact - If true, only shows the icon without text label.
+ * @param fullWidth - If true, the toggle takes up the full width of its container.
+ * @param className - Additional CSS classes.
+ */
 interface ThemeToggleProps {
   compact?: boolean;
   fullWidth?: boolean;
   className?: string;
 }
 
+/**
+ * A theme switcher component that allows users to choose between Light, Dark, and System themes.
+ * Uses `ThemeContext` to manage and persist theme preferences.
+ * 
+ * @example
+ * ```tsx
+ * <ThemeToggle compact={false} />
+ * ```
+ */
 export default function ThemeToggle({
   compact = false,
   fullWidth = false,

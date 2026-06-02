@@ -12,8 +12,17 @@ interface State {
 }
 
 /**
- * React Error Boundary — catches render-time errors in the component tree.
- * Note: does NOT catch errors in event handlers (use try/catch there).
+ * React Error Boundary that catches render-time errors in the component tree.
+ * Prevents the entire application from crashing and displays a recovery UI.
+ * 
+ * Note: does NOT catch errors in event handlers or asynchronous code (use try/catch there).
+ * 
+ * @example
+ * ```tsx
+ * <ErrorBoundary fallback={<CustomErrorUI />}>
+ *   <MyComponent />
+ * </ErrorBoundary>
+ * ```
  */
 class ErrorBoundary extends Component<Props, State> {
   state: State = { hasError: false };

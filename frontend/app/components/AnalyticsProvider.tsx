@@ -9,6 +9,12 @@ import { trackEvent } from "../lib/analytics";
 const gaId = process.env.NEXT_PUBLIC_GA_ID;
 const plausibleDomain = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN;
 
+/**
+ * Provides client-side analytics tracking for Google Analytics 4 and Plausible.
+ * Automatically tracks page views on route changes and reports Core Web Vitals.
+ * 
+ * Requires `NEXT_PUBLIC_GA_ID` and/or `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` environment variables.
+ */
 export default function AnalyticsProvider() {
   const pathname = usePathname();
   const searchParams = useSearchParams();

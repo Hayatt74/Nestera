@@ -7,6 +7,17 @@ import { clsx } from "clsx";
 export type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "danger";
 export type ButtonSize = "sm" | "md" | "lg";
 
+/**
+ * Props for the Button component
+ * 
+ * @param variant - Button style variant: 'primary', 'secondary', 'outline', 'ghost', 'danger'
+ * @param size - Button size: 'sm', 'md', 'lg'
+ * @param loading - Show loading spinner and disable interactions
+ * @param leftIcon - Icon to display before children
+ * @param rightIcon - Icon to display after children
+ * @param fullWidth - Whether the button should take up 100% of the container width
+ * @param disabled - Standard HTML disabled attribute
+ */
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
@@ -16,6 +27,11 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   fullWidth?: boolean;
   children: React.ReactNode;
 }
+
+/**
+ * Highly reusable button component supporting various themes, sizes, and states.
+ * Follows WAI-ARIA patterns for accessible buttons.
+ */
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:

@@ -11,6 +11,15 @@ interface NavLink {
   href: string;
 }
 
+/**
+ * Main navigation bar component.
+ * Handles responsive layout, language switching, and active link states.
+ * 
+ * @example
+ * ```tsx
+ * <Navbar />
+ * ```
+ */
 const Navbar: React.FC = () => {
   const pathname = usePathname();
   const router = useRouter();

@@ -11,8 +11,23 @@ interface ThemedImageProps extends Omit<ImageProps, "src"> {
 }
 
 /**
- * Renders the correct image variant based on the active theme.
- * Falls back to a skeleton placeholder while loading.
+ * A responsive image component that automatically switches between light and dark
+ * source files based on the user's active theme preference.
+ * 
+ * @example
+ * ```tsx
+ * <ThemedImage 
+ *   srcLight="/logo-light.png" 
+ *   srcDark="/logo-dark.png" 
+ *   alt="Nestera Logo" 
+ *   width={180} 
+ *   height={40} 
+ * />
+ * ```
+ * 
+ * @param srcLight - Path to the image for light mode.
+ * @param srcDark - Path to the image for dark mode.
+ * @param alt - Descriptive text for screen readers.
  */
 export default function ThemedImage({ srcLight, srcDark, alt, className, ...props }: ThemedImageProps) {
   const { resolvedTheme } = useTheme();

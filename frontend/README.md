@@ -52,6 +52,18 @@ pnpm build-storybook
 
 Storybook is configured with Next.js/Vite, docs, accessibility checks, and a `next-intl` decorator. See `STORYBOOK.md` for details.
 
+## Component Library
+
+Nestera uses a custom-built, accessible component library. All components are documented using JSDoc.
+
+Key components:
+- `Button`: Multiple variants, sizes, and loading states.
+- `LoadingState` & `Skeleton`: Comprehensive loading indicators and skeleton screens.
+- `ThemeToggle`: Accessible theme switching (Light/Dark/System).
+- `ThemedImage`: Responsive images that adapt to the active theme.
+
+For detailed documentation, visit the **/docs** section in the application or view the source code for JSDoc references.
+
 ## Analytics
 
 Core Web Vitals and custom product events are reported from `app/components/AnalyticsProvider.tsx` and `app/lib/analytics.ts`.

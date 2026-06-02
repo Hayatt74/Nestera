@@ -24,6 +24,15 @@ const communityLinks = [
   { key: 'docs', href: '#' },
 ];
 
+/**
+ * Application footer component.
+ * Contains product links, company information, community links, and social media icons.
+ * 
+ * @example
+ * ```tsx
+ * <Footer />
+ * ```
+ */
 const Footer: React.FC = () => {
   const t = useTranslations('Footer');
 

@@ -205,6 +205,127 @@ console.log(\`Current APY: \${data.apy}%\`);`}
         </div>
       );
 
+    case 'component-library':
+      return (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <h1 className="text-4xl font-extrabold text-white mb-6 tracking-tight">Component Library</h1>
+          <p className="text-lg text-[rgba(180,210,210,0.7)] leading-relaxed mb-8">
+            Nestera uses a custom-built component library designed for high performance, 
+            accessibility, and consistent aesthetics.
+          </p>
+
+          <h2 className="text-2xl font-bold text-white mb-6 mt-12">Button</h2>
+          <p className="text-[rgba(180,210,210,0.7)] mb-4">
+            The primary interaction component. Supports multiple variants, sizes, and loading states.
+          </p>
+          
+          <div className="flex flex-wrap gap-4 my-8 p-6 rounded-2xl bg-white/5 border border-white/10">
+            <Button variant="primary">Primary</Button>
+            <Button variant="secondary">Secondary</Button>
+            <Button variant="outline">Outline</Button>
+            <Button variant="ghost">Ghost</Button>
+            <Button variant="danger">Danger</Button>
+          </div>
+
+          <CodeBlock 
+            language="tsx"
+            code={`<Button variant="primary" size="md" onClick={handleClick}>
+  Get Started
+</Button>`}
+          />
+
+          <h3 className="text-xl font-bold text-white mb-4 mt-8">Variants & Sizes</h3>
+          <div className="overflow-x-auto my-6">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-white/10">
+                  <th className="py-3 pr-4 text-sm font-bold text-white">Prop</th>
+                  <th className="py-3 px-4 text-sm font-bold text-white">Type</th>
+                  <th className="py-3 px-4 text-sm font-bold text-white">Description</th>
+                </tr>
+              </thead>
+              <tbody className="text-sm text-[rgba(180,210,210,0.7)]">
+                <tr className="border-b border-white/5">
+                  <td className="py-3 pr-4 font-mono text-cyan-400">variant</td>
+                  <td className="py-3 px-4 font-mono text-xs">primary | secondary | outline | ghost | danger</td>
+                  <td className="py-3 px-4">Visual style of the button.</td>
+                </tr>
+                <tr className="border-b border-white/5">
+                  <td className="py-3 pr-4 font-mono text-cyan-400">size</td>
+                  <td className="py-3 px-4 font-mono text-xs">sm | md | lg</td>
+                  <td className="py-3 px-4">Adjusts padding, font-size, and minimum height.</td>
+                </tr>
+                <tr className="border-b border-white/5">
+                  <td className="py-3 pr-4 font-mono text-cyan-400">loading</td>
+                  <td className="py-3 px-4 font-mono text-xs">boolean</td>
+                  <td className="py-3 px-4">Shows a spinner and disables the button.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 className="text-2xl font-bold text-white mb-6 mt-16">Skeleton & Loading</h2>
+          <p className="text-[rgba(180,210,210,0.7)] mb-4">
+            Components used to indicate loading states and improve perceived performance.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-8">
+            <div className="p-6 rounded-2xl bg-white/5 border border-white/10 space-y-4">
+              <div className="h-4 w-3/4 rounded bg-white/10 animate-pulse" />
+              <div className="h-4 w-1/2 rounded bg-white/10 animate-pulse" />
+              <div className="h-10 w-full rounded-xl bg-white/10 animate-pulse" />
+              <p className="text-xs text-center text-white/40">Skeleton Example</p>
+            </div>
+            <div className="p-6 rounded-2xl bg-white/5 border border-white/10 flex flex-col items-center justify-center gap-4">
+               <div className="w-8 h-8 rounded-full border-2 border-cyan-500 border-t-transparent animate-spin" />
+               <p className="text-sm text-[rgba(180,210,210,0.6)]">Loading data...</p>
+            </div>
+          </div>
+
+          <h2 className="text-2xl font-bold text-white mb-6 mt-16">Accessibility (A11y)</h2>
+          <div className="grid grid-cols-1 gap-4">
+            <div className="p-6 rounded-2xl bg-emerald-500/5 border border-emerald-500/20">
+              <h4 className="text-emerald-400 font-bold mb-2">Keyboard Navigation</h4>
+              <p className="text-sm text-[rgba(180,210,210,0.8)]">
+                All interactive components are focusable and support keyboard triggers (Enter/Space).
+              </p>
+            </div>
+            <div className="p-6 rounded-2xl bg-emerald-500/5 border border-emerald-500/20">
+              <h4 className="text-emerald-400 font-bold mb-2">ARIA Attributes</h4>
+              <p className="text-sm text-[rgba(180,210,210,0.8)]">
+                We use proper `aria-label`, `aria-expanded`, and `role` attributes to ensure compatibility with screen readers.
+              </p>
+            </div>
+            <div className="p-6 rounded-2xl bg-emerald-500/5 border border-emerald-500/20">
+              <h4 className="text-emerald-400 font-bold mb-2">Reduced Motion</h4>
+              <p className="text-sm text-[rgba(180,210,210,0.8)]">
+                Animations respect the `prefers-reduced-motion` media query using Tailwind's `motion-safe` and `motion-reduce`.
+              </p>
+            </div>
+          </div>
+
+          <h2 className="text-2xl font-bold text-white mb-6 mt-16">Do's and Don'ts</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-6 rounded-2xl bg-emerald-500/5 border border-emerald-500/20">
+              <h4 className="text-emerald-400 font-bold mb-4">Do</h4>
+              <ul className="text-sm text-[rgba(180,210,210,0.8)] space-y-3">
+                <li className="flex gap-2">✅ <span>Use the `Button` component for all actions.</span></li>
+                <li className="flex gap-2">✅ <span>Provide descriptive `aria-label` for icon-only buttons.</span></li>
+                <li className="flex gap-2">✅ <span>Use `Skeleton` during early data fetch phases.</span></li>
+              </ul>
+            </div>
+            <div className="p-6 rounded-2xl bg-red-500/5 border border-red-500/20">
+              <h4 className="text-red-400 font-bold mb-4">Don't</h4>
+              <ul className="text-sm text-[rgba(180,210,210,0.8)] space-y-3">
+                <li className="flex gap-2">❌ <span>Don't use `div` for clickable elements.</span></li>
+                <li className="flex gap-2">❌ <span>Don't override component styles with `!important`.</span></li>
+                <li className="flex gap-2">❌ <span>Don't forget to handle the loading state of a button.</span></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      );
+
     case 'faq':
       return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
