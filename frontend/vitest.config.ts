@@ -10,15 +10,31 @@ import { playwright } from '@vitest/browser-playwright';
 const dirname =
   typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
 
-// More info at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon
+// Vitest config for unit/integration tests and Storybook integration
 export default defineConfig({
   test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: './test/setupTests.ts',
+    include: ['app/**/*.{test,spec}.{ts,tsx}', 'test/**/*.{test,spec}.{ts,tsx}'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov'],
+      enabled: true,
+      all: true,
+      include: ['app/**/*.{ts,tsx}'],
+      exclude: ['**/*.d.ts', 'node_modules/**', '.next/**', 'storybook-static/**'],
+      // Enforce minimum coverage thresholds for the frontend
+      statements: 80,
+      branches: 80,
+      functions: 80,
+      lines: 80,
+    },
     projects: [
       {
         extends: true,
         plugins: [
           // The plugin will run tests for the stories defined in your Storybook config
-          // See options at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon#storybooktest
           storybookTest({ configDir: path.join(dirname, '.storybook') }),
         ],
         test: {

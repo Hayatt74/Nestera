@@ -6,6 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "test": "vitest",
+    "test:unit": "vitest",
+    "test:coverage": "vitest --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ci": "playwright test --reporter=dot",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
   },
@@ -44,5 +49,10 @@
     "playwright": "^1.60.0",
     "@vitest/browser-playwright": "^4.1.7",
     "@vitest/coverage-v8": "^4.1.7"
+    ,"@testing-library/react": "^14.0.0",
+    "@testing-library/user-event": "^14.4.3",
+    "@testing-library/jest-dom": "^6.0.0",
+    "msw": "^1.2.1",
+    "whatwg-fetch": "^3.6.2"
   }
 }
