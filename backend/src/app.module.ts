@@ -348,6 +348,11 @@ const envValidationSchema = Joi.object({
         ttl: 60000, // 1 minute
         limit: 10,
       },
+      {
+        name: 'export',
+        ttl: 15 * 60 * 1000, // 15 minutes
+        limit: 6,
+      },
     ]),
   ],
   controllers: [AppController],

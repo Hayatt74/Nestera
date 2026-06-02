@@ -1,8 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, HttpStatus } from '@nestjs/common';
+import { INestApplication, HttpStatus, BadRequestException } from '@nestjs/common';
 import * as request from 'supertest';
 import { StatisticsController } from './statistics.controller';
 import { StatisticsService } from './services/statistics.service';
+import { AnalyticsExportService } from './services/analytics-export.service';
 import { StatisticsAggregationService } from './services/statistics-aggregation.service';
 import { StatisticsUtilsService } from './services/statistics-utils.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -14,6 +15,10 @@ import {
   SystemHealthDto,
   StatisticsOverviewDto,
 } from './dto/statistics-response.dto';
+import {
+  AnalyticsExportFormat,
+  AnalyticsExportStatus,
+} from './entities/analytics-export-job.entity';
 
 describe('Statistics API (e2e)', () => {
   let app: INestApplication;
@@ -64,6 +69,69 @@ describe('Statistics API (e2e)', () => {
         StatisticsService,
         StatisticsAggregationService,
         StatisticsUtilsService,
+        {
+          provide: AnalyticsExportService,
+          useValue: {
+            exportDirect: jest.fn(async (dataType, query, format) => {
+              if (!['json', 'csv', 'xlsx'].includes(format)) {
+                throw new BadRequestException('Invalid analytics export format');
+              }
+
+              const payload = {
+                dataType,
+                generatedAt: new Date().toISOString(),
+                range: query?.range ?? '30d',
+                sections: [
+                  {
+                    name: 'overview',
+                    rows: [{ totalUsers: 10, totalTransactions: 20 }],
+                  },
+                ],
+              };
+
+              if (format === 'json') {
+                return {
+                  format,
+                  fileName: `analytics_${dataType}.json`,
+                  contentType: 'application/json',
+                  buffer: Buffer.from(JSON.stringify(payload)),
+                  body: payload,
+                };
+              }
+
+              return {
+                format,
+                fileName: `analytics_${dataType}.${format}`,
+                contentType:
+                  format === 'csv'
+                    ? 'text/csv; charset=utf-8'
+                    : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                buffer: Buffer.from(
+                  format === 'csv' ? 'section,totalUsers,totalTransactions\noverview,10,20\n' : 'PK',
+                ),
+              };
+            }),
+            requestExportJob: jest.fn(async (userId, dataType, body) => ({
+              requestId: 'job-1',
+              status: AnalyticsExportStatus.PENDING,
+              dataType,
+              format: body.format ?? AnalyticsExportFormat.JSON,
+              createdAt: new Date(),
+            })),
+            getExportJobStatus: jest.fn(async () => ({
+              requestId: 'job-1',
+              status: AnalyticsExportStatus.PENDING,
+              dataType: 'all',
+              format: AnalyticsExportFormat.JSON,
+              createdAt: new Date(),
+            })),
+            getExportJobDownload: jest.fn(async () => ({
+              filePath: '/tmp/analytics-export.json',
+              fileName: 'analytics_export.json',
+              contentType: 'application/json',
+            })),
+          },
+        },
         {
           provide: getRepositoryToken('UserGrowthMetrics'),
           useValue: mockRepositories.UserGrowthMetricsRepository,
@@ -513,8 +581,8 @@ describe('Statistics API (e2e)', () => {
         .query({ format: 'json' })
         .expect(HttpStatus.OK);
 
-      expect(response.body.format).toBe('json');
       expect(response.body.dataType).toBe('all');
+      expect(response.body.sections).toBeDefined();
     });
 
     it('should export user statistics in CSV format', async () => {
@@ -524,8 +592,47 @@ describe('Statistics API (e2e)', () => {
         .query({ format: 'csv' })
         .expect(HttpStatus.OK);
 
-      expect(response.body.format).toBe('csv');
-      expect(response.body.dataType).toBe('users');
+      expect(response.header['content-type']).toContain('text/csv');
+      expect(response.text).toContain('section,totalUsers,totalTransactions');
+    });
+
+    it('should export analytics in xlsx format', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/admin/statistics/export/all')
+        .set('Authorization', adminToken)
+        .query({ format: 'xlsx' })
+        .expect(HttpStatus.OK);
+
+      expect(response.header['content-type']).toContain(
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+    });
+
+    it('should queue an export job', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/admin/statistics/export/all/jobs')
+        .set('Authorization', adminToken)
+        .send({ format: 'json', range: '30d' })
+        .expect(HttpStatus.ACCEPTED);
+
+      expect(response.body.requestId).toBe('job-1');
+      expect(response.body.status).toBe(AnalyticsExportStatus.PENDING);
+    });
+
+    it('should support date range filtering on export', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/admin/statistics/export/transactions')
+        .set('Authorization', adminToken)
+        .query({
+          format: 'json',
+          range: 'custom',
+          fromDate: '2024-01-01',
+          toDate: '2024-01-31',
+        })
+        .expect(HttpStatus.OK);
+
+      expect(response.body.range).toBe('custom');
+      expect(response.body.dataType).toBe('transactions');
     });
 
     it('should reject invalid format', async () => {
@@ -535,7 +642,7 @@ describe('Statistics API (e2e)', () => {
         .query({ format: 'pdf' })
         .expect(HttpStatus.BAD_REQUEST);
 
-      expect(response.body.message).toBe('Invalid export format');
+      expect(response.body.message).toContain('Invalid analytics export format');
     });
   });
 

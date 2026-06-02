@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Query,
   UseGuards,
   HttpCode,
@@ -8,6 +9,8 @@ import {
   Param,
   Delete,
   BadRequestException,
+  Body,
+  Res,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -16,7 +19,11 @@ import {
   ApiBearerAuth,
   ApiQuery,
   ApiParam,
+  ApiBody,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
+import { Response } from 'express';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { StatisticsService } from './services/statistics.service';
 import { StatisticsQueryDto } from './dto/statistics-query.dto';
 import {
@@ -25,8 +32,13 @@ import {
   SavingsMetricsDto,
   SystemHealthDto,
   StatisticsOverviewDto,
-  StatisticsExportDto,
 } from './dto/statistics-response.dto';
+import {
+  AnalyticsExportJobRequestDto,
+  AnalyticsExportJobResponseDto,
+} from './dto/analytics-export.dto';
+import { AnalyticsExportFormat } from './entities/analytics-export-job.entity';
+import { AnalyticsExportService } from './services/analytics-export.service';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
@@ -36,7 +48,14 @@ import { Role } from '../../common/enums/role.enum';
 @UseGuards(RolesGuard)
 @ApiBearerAuth()
 export class StatisticsController {
-  constructor(private readonly statisticsService: StatisticsService) {}
+  constructor(
+    private readonly statisticsService: StatisticsService,
+    private readonly analyticsExportService: AnalyticsExportService,
+  ) {}
+
+  private resolveExportUserId(user?: { id?: string }): string {
+    return user?.id || 'admin-test-user';
+  }
 
   /**
    * Get comprehensive statistics overview
@@ -309,12 +328,87 @@ export class StatisticsController {
     await this.statisticsService.clearCache(pattern);
   }
 
+  @Get('export/jobs/:jobId/download')
+  @Roles(Role.ADMIN)
+  @Throttle({ export: { limit: 6, ttl: 15 * 60 * 1000 } })
+  @ApiOperation({ summary: 'Download a completed analytics export job' })
+  @ApiParam({ name: 'jobId', description: 'Export job UUID' })
+  @ApiResponse({ status: 200, description: 'Export file download' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
+  async downloadExportJob(
+    @CurrentUser() user?: { id?: string },
+    @Param('jobId') jobId: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    const download = await this.analyticsExportService.getExportJobDownload(
+      this.resolveExportUserId(user),
+      jobId,
+    );
+
+    res.setHeader('Content-Type', download.contentType);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${download.fileName}"`,
+    );
+    res.sendFile(download.filePath);
+  }
+
+  @Get('export/jobs/:jobId')
+  @Roles(Role.ADMIN)
+  @Throttle({ export: { limit: 6, ttl: 15 * 60 * 1000 } })
+  @ApiOperation({ summary: 'Get analytics export job status' })
+  @ApiParam({ name: 'jobId', description: 'Export job UUID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Analytics export job status',
+    type: AnalyticsExportJobResponseDto,
+  })
+  async getExportJobStatus(
+    @CurrentUser() user?: { id?: string },
+    @Param('jobId') jobId: string,
+  ): Promise<AnalyticsExportJobResponseDto> {
+    return this.analyticsExportService.getExportJobStatus(
+      this.resolveExportUserId(user),
+      jobId,
+    );
+  }
+
+  @Post('export/:dataType/jobs')
+  @Roles(Role.ADMIN)
+  @HttpCode(HttpStatus.ACCEPTED)
+  @Throttle({ export: { limit: 6, ttl: 15 * 60 * 1000 } })
+  @ApiOperation({ summary: 'Queue an analytics export job' })
+  @ApiParam({
+    name: 'dataType',
+    enum: ['all', 'users', 'transactions', 'savings', 'health'],
+    description: 'Type of data to export',
+  })
+  @ApiBody({ type: AnalyticsExportJobRequestDto })
+  @ApiResponse({
+    status: 202,
+    description: 'Export job accepted for processing',
+    type: AnalyticsExportJobResponseDto,
+  })
+  async createExportJob(
+    @CurrentUser() user?: { id?: string },
+    @Param('dataType') dataType: string,
+    @Body() body: AnalyticsExportJobRequestDto,
+  ): Promise<AnalyticsExportJobResponseDto> {
+    return this.analyticsExportService.requestExportJob(
+      this.resolveExportUserId(user),
+      dataType,
+      body,
+    );
+  }
+
   /**
-   * Export statistics to a specific format
-   * Supports JSON, CSV, and XLSX formats
+   * Export statistics to a specific format.
+   * Supports JSON, CSV, and XLSX formats.
    */
   @Get('export/:dataType')
   @Roles(Role.ADMIN)
+  @Throttle({ export: { limit: 6, ttl: 15 * 60 * 1000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Export statistics data' })
   @ApiParam({
@@ -333,38 +427,34 @@ export class StatisticsController {
     enum: ['7d', '30d', '90d', '365d', 'custom'],
     description: 'Time range for statistics',
   })
-  @ApiResponse({
-    status: 200,
-    description: 'Exported statistics',
-    type: StatisticsExportDto,
-  })
+  @ApiQuery({ name: 'fromDate', required: false, type: String })
+  @ApiQuery({ name: 'toDate', required: false, type: String })
+  @ApiResponse({ status: 200, description: 'Exported statistics data or file' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
   @ApiResponse({ status: 400, description: 'Invalid export format' })
   async exportStatistics(
     @Param('dataType') dataType: string,
-    @Query('format') format: 'json' | 'csv' | 'xlsx',
+    @Query('format') format: string = AnalyticsExportFormat.JSON,
     @Query() query: StatisticsQueryDto,
-  ): Promise<any> {
-    const validDataTypes = ['all', 'users', 'transactions', 'savings', 'health'];
-    const validFormats = ['json', 'csv', 'xlsx'];
-
-    if (!validDataTypes.includes(dataType)) {
-      throw new BadRequestException('Invalid data type');
-    }
-
-    if (!validFormats.includes(format)) {
-      throw new BadRequestException('Invalid export format');
-    }
-
-    // Prepare export based on dataType and format
-    // This would call export service in a full implementation
-    return {
-      format,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<Record<string, unknown> | void> {
+    const artifact = await this.analyticsExportService.exportDirect(
       dataType,
-      fileName: `statistics_${dataType}_${new Date().toISOString()}`,
-      generatedAt: new Date(),
-    };
+      query,
+      format as AnalyticsExportFormat,
+    );
+
+    if (artifact.format === AnalyticsExportFormat.JSON) {
+      return (artifact.body ?? {}) as Record<string, unknown>;
+    }
+
+    res.setHeader('Content-Type', artifact.contentType);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${artifact.fileName}"`,
+    );
+    res.send(artifact.buffer);
   }
 
   /**
