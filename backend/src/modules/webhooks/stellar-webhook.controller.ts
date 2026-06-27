@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
+import { Idempotent } from '../../common/decorators/idempotent.decorator';
 
 @Controller('webhooks/stellar')
 export class StellarWebhookController {
@@ -19,6 +20,7 @@ export class StellarWebhookController {
 
   @Post()
   @HttpCode(HttpStatus.OK)
+  @Idempotent({ ttlSeconds: 86400 })
   async handleWebhook(
     @Body() payload: any,
     @Headers('x-stellar-signature') signature?: string,

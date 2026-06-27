@@ -52,6 +52,7 @@ import { RecommendationResponseDto } from './dto/recommendation-response.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RpcThrottleGuard } from '../../common/guards/rpc-throttle.guard';
+import { Idempotent } from '../../common/decorators/idempotent.decorator';
 import { RecommendationService } from './services/recommendation.service';
 import { AutoDepositService } from './services/auto-deposit.service';
 import { IdempotencyInterceptor } from '../../common/interceptors/idempotency.interceptor';
@@ -220,6 +221,7 @@ export class SavingsController {
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(IdempotencyInterceptor)
   @HttpCode(HttpStatus.CREATED)
+  @Idempotent({ ttlSeconds: 86400 })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Subscribe to a savings product' })
   @ApiBody({ type: SubscribeDto })
@@ -245,6 +247,7 @@ export class SavingsController {
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(IdempotencyInterceptor)
   @HttpCode(HttpStatus.CREATED)
+  @Idempotent({ ttlSeconds: 86400 })
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Request withdrawal from a savings subscription',

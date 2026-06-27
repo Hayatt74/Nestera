@@ -1,16 +1,23 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { StandardErrorResponseDto } from './standard-error-response.dto';
+import { ErrorCode } from '../enums/error-code.enum';
 
 export class ApiErrorResponseDto extends StandardErrorResponseDto {
   @ApiProperty({
-    example: 'Bad Request',
-    description: 'Error type (deprecated, use errorCode instead)',
-    required: false,
+    enum: ErrorCode,
+    example: ErrorCode.BAD_REQUEST,
+    description: 'Stable, machine-readable error code',
   })
-  error?: string;
+  declare errorCode: ErrorCode;
 }
 
 export class ValidationErrorDto extends ApiErrorResponseDto {
+  @ApiProperty({ example: 422 })
+  statusCode = 422;
+
+  @ApiProperty({ enum: [ErrorCode.VALIDATION_ERROR] })
+  errorCode = ErrorCode.VALIDATION_ERROR;
+
   @ApiProperty({
     example: [
       {
@@ -21,7 +28,7 @@ export class ValidationErrorDto extends ApiErrorResponseDto {
         },
       },
     ],
-    description: 'Validation errors',
+    description: 'Per-field validation errors',
   })
   declare errors?: Array<{
     field: string;
@@ -31,61 +38,33 @@ export class ValidationErrorDto extends ApiErrorResponseDto {
 }
 
 export class UnauthorizedErrorDto extends ApiErrorResponseDto {
-  @ApiProperty({
-    example: 401,
-    description: 'HTTP status code',
-  })
+  @ApiProperty({ example: 401 })
   statusCode = 401;
 
-  @ApiProperty({
-    example: 'AUTH_001',
-    description: 'Error code',
-  })
-  errorCode = 'AUTH_001';
-
-  @ApiProperty({
-    example: 'Authentication required. Please provide valid credentials.',
-    description: 'Error message',
-  })
-  message = 'Authentication required. Please provide valid credentials.';
+  @ApiProperty({ enum: [ErrorCode.UNAUTHORIZED] })
+  errorCode = ErrorCode.UNAUTHORIZED;
 }
 
 export class ForbiddenErrorDto extends ApiErrorResponseDto {
-  @ApiProperty({
-    example: 403,
-    description: 'HTTP status code',
-  })
+  @ApiProperty({ example: 403 })
   statusCode = 403;
 
-  @ApiProperty({
-    example: 'AUTHZ_001',
-    description: 'Error code',
-  })
-  errorCode = 'AUTHZ_001';
-
-  @ApiProperty({
-    example: 'You do not have permission to access this resource.',
-    description: 'Error message',
-  })
-  message = 'You do not have permission to access this resource.';
+  @ApiProperty({ enum: [ErrorCode.FORBIDDEN] })
+  errorCode = ErrorCode.FORBIDDEN;
 }
 
 export class NotFoundErrorDto extends ApiErrorResponseDto {
-  @ApiProperty({
-    example: 404,
-    description: 'HTTP status code',
-  })
+  @ApiProperty({ example: 404 })
   statusCode = 404;
 
-  @ApiProperty({
-    example: 'SYS_404',
-    description: 'Error code',
-  })
-  errorCode = 'SYS_404';
+  @ApiProperty({ enum: [ErrorCode.NOT_FOUND] })
+  errorCode = ErrorCode.NOT_FOUND;
+}
 
-  @ApiProperty({
-    example: 'The requested resource was not found.',
-    description: 'Error message',
-  })
-  message = 'The requested resource was not found.';
+export class ConflictErrorDto extends ApiErrorResponseDto {
+  @ApiProperty({ example: 409 })
+  statusCode = 409;
+
+  @ApiProperty({ enum: [ErrorCode.CONFLICT] })
+  errorCode = ErrorCode.CONFLICT;
 }

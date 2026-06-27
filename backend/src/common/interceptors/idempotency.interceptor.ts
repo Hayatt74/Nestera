@@ -4,75 +4,143 @@ import {
   ExecutionContext,
   CallHandler,
   ConflictException,
-  BadRequestException,
+  Logger,
+  Inject,
 } from '@nestjs/common';
-import { Observable, of, from } from 'rxjs';
-import { tap, mergeMap, finalize } from 'rxjs/operators';
-import { IdempotencyService } from '../services/idempotency.service';
+import { Reflector } from '@nestjs/core';
+import { Observable, of, throwError } from 'rxjs';
+import { tap, catchError } from 'rxjs/operators';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
+import { Request, Response } from 'express';
+import { createHash } from 'crypto';
+import {
+  IDEMPOTENCY_KEY,
+  IdempotencyOptions,
+} from '../decorators/idempotent.decorator';
+import { ErrorCode } from '../enums/error-code.enum';
+
+interface StoredIdempotencyRecord {
+  payloadHash: string;
+  statusCode: number;
+  body: unknown;
+  completedAt: string;
+}
+
+const LOCK_SUFFIX = ':lock';
+const LOCK_TTL_MS = 30_000;
 
 @Injectable()
 export class IdempotencyInterceptor implements NestInterceptor {
-  constructor(private readonly idempotencyService: IdempotencyService) {}
+  private readonly logger = new Logger(IdempotencyInterceptor.name);
+
+  constructor(
+    private readonly reflector: Reflector,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
+  ) {}
 
   async intercept(
     context: ExecutionContext,
     next: CallHandler,
-  ): Promise<Observable<any>> {
-    const request = context.switchToHttp().getRequest();
-    
-    // Only apply to POST, PATCH, PUT, DELETE
-    if (!['POST', 'PATCH', 'PUT', 'DELETE'].includes(request.method)) {
+  ): Promise<Observable<unknown>> {
+    const options = this.reflector.get<IdempotencyOptions | undefined>(
+      IDEMPOTENCY_KEY,
+      context.getHandler(),
+    );
+
+    if (!options) {
       return next.handle();
     }
 
-    const idempotencyKey = request.headers['x-idempotency-key'];
+    const request = context.switchToHttp().getRequest<Request>();
+    const response = context.switchToHttp().getResponse<Response>();
+    const idempotencyKey = request.headers['idempotency-key'] as
+      | string
+      | undefined;
 
     if (!idempotencyKey) {
       return next.handle();
     }
 
-    if (typeof idempotencyKey !== 'string') {
-      throw new BadRequestException('Invalid X-Idempotency-Key header');
+    const cacheKey = `idempotency:${request.method}:${request.path}:${idempotencyKey}`;
+    const payloadHash = this.hashPayload(request.body);
+
+    const existing = await this.cache.get<StoredIdempotencyRecord>(cacheKey);
+
+    if (existing) {
+      if (existing.payloadHash !== payloadHash) {
+        return throwError(
+          () =>
+            new ConflictException({
+              errorCode: ErrorCode.IDEMPOTENCY_CONFLICT,
+              message:
+                'Idempotency key has already been used with a different request payload',
+            }),
+        );
+      }
+
+      this.logger.debug(
+        `Idempotency cache hit for key=${idempotencyKey} on ${request.method} ${request.path}`,
+      );
+      response.setHeader('Idempotency-Replay', 'true');
+      response.status(existing.statusCode);
+      return of(existing.body);
     }
 
-    const userId = request.user?.id || 'anonymous';
-    
-    // Check if we have a cached response
-    const cachedResponse = await this.idempotencyService.getResponse(
-      idempotencyKey,
-      userId,
-    );
-    if (cachedResponse) {
-      return of(cachedResponse);
-    }
+    const lockKey = `${cacheKey}${LOCK_SUFFIX}`;
+    const lockAcquired = await this.tryAcquireLock(lockKey);
 
-    // Check if it's already being processed to prevent race conditions
-    const isProcessing = await this.idempotencyService.isProcessing(
-      idempotencyKey,
-      userId,
-    );
-    if (isProcessing) {
-      throw new ConflictException(
-        'A request with this idempotency key is already being processed',
+    if (!lockAcquired) {
+      return throwError(
+        () =>
+          new ConflictException({
+            errorCode: ErrorCode.IDEMPOTENCY_CONFLICT,
+            message:
+              'A request with this idempotency key is currently being processed',
+          }),
       );
     }
 
-    // Mark as processing
-    await this.idempotencyService.setProcessing(idempotencyKey, userId);
+    const ttlMs = (options.ttlSeconds ?? 86400) * 1000;
 
     return next.handle().pipe(
-      tap(async (response) => {
-        // Cache the successful response
-        await this.idempotencyService.saveResponse(
-          idempotencyKey,
-          userId,
-          response,
-        );
+      tap(async (body) => {
+        try {
+          const record: StoredIdempotencyRecord = {
+            payloadHash,
+            statusCode: response.statusCode,
+            body,
+            completedAt: new Date().toISOString(),
+          };
+          await this.cache.set(cacheKey, record, ttlMs);
+        } finally {
+          await this.releaseLock(lockKey);
+        }
       }),
-      finalize(async () => {
-        // Remove processing lock
-        await this.idempotencyService.removeProcessing(idempotencyKey, userId);
+      catchError(async (err) => {
+        await this.releaseLock(lockKey);
+        throw err;
       }),
     );
+  }
+
+  private hashPayload(body: unknown): string {
+    const normalized = JSON.stringify(body ?? {});
+    return createHash('sha256').update(normalized).digest('hex');
+  }
+
+  private async tryAcquireLock(lockKey: string): Promise<boolean> {
+    const existing = await this.cache.get(lockKey);
+    if (existing) return false;
+    await this.cache.set(lockKey, '1', LOCK_TTL_MS);
+    return true;
+  }
+
+  private async releaseLock(lockKey: string): Promise<void> {
+    try {
+      await this.cache.del(lockKey);
+    } catch {
+      // Lock cleanup is best-effort
+    }
   }
 }
