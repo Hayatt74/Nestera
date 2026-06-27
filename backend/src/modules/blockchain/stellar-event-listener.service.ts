@@ -163,15 +163,19 @@ export class StellarEventListenerService
     const eventId = event.id;
 
     try {
-      // Check if event already processed (idempotency)
+      // Dedup hardening:
+      // - We keep the optimistic check for fast-path.
+      // - We also rely on the DB unique constraint (contractId+eventId)
+      //   so races / duplicates are safe even if multiple workers poll concurrently.
       const existing = await this.processedEventRepository.findOne({
-        where: { eventId },
+        where: { contractId: this.contractId, eventId },
       });
 
       if (existing) {
         this.logger.debug(`Event ${eventId} already processed, skipping`);
         return;
       }
+
 
       // Parse event topics and value
       const topics = event.topic.map((topic) => topic.toXDR('base64'));
