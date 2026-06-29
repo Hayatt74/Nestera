@@ -57,6 +57,11 @@ export class GracefulShutdownService implements BeforeApplicationShutdown {
     GracefulShutdownService.instance = this;
   }
 
+  registerWorker(worker: BackgroundWorker): void {
+    this.backgroundWorkers.push(worker);
+    this.logger.log(`Registered background worker: ${worker.name}`);
+  }
+
   static async runTrackedTask<T>(
     taskName: string,
     task: () => Promise<T> | T,
@@ -65,11 +70,6 @@ export class GracefulShutdownService implements BeforeApplicationShutdown {
       return Promise.resolve(task());
     }
     return GracefulShutdownService.instance.runBackgroundTask(taskName, task);
-  }
-
-  registerWorker(worker: BackgroundWorker): void {
-    this.backgroundWorkers.push(worker);
-    this.logger.log(`Registered background worker: ${worker.name}`);
   }
 
   registerHttpServer(server: Server): void {
@@ -141,11 +141,23 @@ export class GracefulShutdownService implements BeforeApplicationShutdown {
     return this.shutdownPromise;
   }
 
+  async onApplicationShutdown(signal?: string): Promise<void> {
+    this.beginShutdown(signal);
+    this.stopSchedulers();
+    this.registeredHttpServer?.closeIdleConnections?.();
+
+    await this.waitForDrain(this.shutdownTimeoutMs - 5_000);
+    await this.stopBackgroundWorkers();
+    await this.closeCacheConnections();
+    await this.closeDatabaseConnections();
+  }
+
   async beforeApplicationShutdown(signal?: string): Promise<void> {
     this.beginShutdown(signal);
     this.stopSchedulers();
     this.registeredHttpServer?.closeIdleConnections?.();
     await this.waitForDrain(this.shutdownTimeoutMs - 5_000);
+    await this.stopBackgroundWorkers();
     await this.closeCacheConnections();
     await this.closeDatabaseConnections();
   }
@@ -251,6 +263,26 @@ export class GracefulShutdownService implements BeforeApplicationShutdown {
         return;
       }
       await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+  }
+
+  private async stopBackgroundWorkers(): Promise<void> {
+    if (this.backgroundWorkers.length === 0) return;
+    this.logger.log(`Stopping ${this.backgroundWorkers.length} background worker(s)...`);
+    const results = await Promise.allSettled(
+      this.backgroundWorkers.map(async (worker) => {
+        try {
+          await worker.shutdown();
+          this.logger.log(`Background worker stopped: ${worker.name}`);
+        } catch (error) {
+          this.logger.error(`Error stopping background worker ${worker.name}:`, error);
+          throw error;
+        }
+      }),
+    );
+    const failed = results.filter((r) => r.status === 'rejected');
+    if (failed.length > 0) {
+      this.logger.warn(`${failed.length} background worker(s) failed to stop cleanly`);
     }
   }
 

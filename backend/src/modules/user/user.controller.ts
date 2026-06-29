@@ -212,7 +212,6 @@ export class UserController {
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
-      type: 'object',
       properties: { file: { type: 'string', format: 'binary' } },
     },
   })
@@ -245,7 +244,6 @@ export class UserController {
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
-      type: 'object',
       properties: { document: { type: 'string', format: 'binary' } },
     },
   })

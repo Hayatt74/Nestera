@@ -125,7 +125,7 @@ describe('GracefulShutdownService', () => {
   it('tracks background tasks while they are running', async () => {
     const trackedService = new GracefulShutdownService(
       mockDataSource as unknown as DataSource,
-      mockCacheManager,
+      mockCacheManager as unknown as any,
       mockSchedulerRegistry as unknown as SchedulerRegistry,
     );
 
@@ -149,7 +149,7 @@ describe('GracefulShutdownService', () => {
   it('skips new background tasks after shutdown starts', async () => {
     const trackedService = new GracefulShutdownService(
       mockDataSource as unknown as DataSource,
-      mockCacheManager,
+      mockCacheManager as unknown as any,
       mockSchedulerRegistry as unknown as SchedulerRegistry,
     );
     const task = jest.fn();
