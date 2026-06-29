@@ -1,4 +1,5 @@
 import { Global, Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { PiiEncryptionService } from './services/pii-encryption.service';
 import { RateLimitMonitorService } from './services/rate-limit-monitor.service';
 import { SecretsConfigService } from './services/secrets-config.service';
@@ -15,11 +16,7 @@ import { DistributedLockModule } from './distributed-lock/distributed-lock.modul
 
 @Global()
 @Module({
-  imports: [
-    CacheModule,
-    TypeOrmModule.forFeature([AuditLog]),
-    DistributedLockModule,
-  ],
+  imports: [CacheModule, TypeOrmModule.forFeature([AuditLog])],
   providers: [
     RateLimitMonitorService,
     PiiEncryptionService,
