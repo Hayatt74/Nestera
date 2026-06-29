@@ -351,6 +351,14 @@ const envValidationSchema = Joi.object({
         ttl: 15 * 60 * 1000, // 15 minutes
         limit: 6,
       },
+      {
+        // Governance vote endpoint — intentionally tight because one wallet
+        // should cast at most one vote per proposal.  Legitimate burst usage
+        // (voting on several proposals in quick succession) fits within 10/min.
+        name: 'vote',
+        ttl: 60_000, // 1 minute
+        limit: 10,
+      },
     ]),
   ],
   controllers: [AppController],
